@@ -165,10 +165,62 @@ Highlights:
 
 ## Second performance test
 
-The second test involves setting `acks=all` - however in our case, as we're running Kafka 3.2.1, this will make no difference to the test (as this is now the default for a producer)[https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html#acks].  Prior to Kafka 3.0 (the default setting was 1)[https://docs.confluent.io/cloud/current/client-apps/optimizing/durability.html#producer].
+The second test involves setting `acks=all` - however in our case, [as we're running Kafka 3.3.0](https://www.confluent.io/blog/introducing-confluent-platform-7-3/), this will make no difference to our test [as this is now the default for a producer](https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html#acks).  Prior to Kafka 3.0 [the default setting was 1](https://docs.confluent.io/cloud/current/client-apps/optimizing/durability.html#producer).
 
+If you are running with an earlier version of Confluent Platform, you'll notice `acks=all` will have an impact on both latency and throughput.
 
+## Third performance test
 
+Looking at the metrics output from the first test, one noteworthy metric is `record-queue-time-avg`:
+
+```
+producer-metrics:record-queue-time-avg:{client-id=perf-producer-client}                                              : 2330.826
+```
+
+This suggests that we're seeing some latency from the producer.
+
+- Producer is queueing more than it’s dequeuing:
+ - The Produce Request size is too low: too many small network requests (all of which are waiting for acks)
+ - We need to produce with bigger batches
+
+What happens if we set `linger.ms` to 100?  Adding this configuration should give the Producer more time to create larger batches. 
+
+* Note: linger.ms between 10 and 100 is generally good. Higher than 1000 will have detrimental effects on performance *
+
+```bash
+time docker exec -it broker1 /bin/bash -c 'KAFKA_OPTS="" kafka-producer-perf-test --throughput -1 --num-records 1000000 --topic demo-perf-topic --record-size 1000 --producer-props bootstrap.servers=broker1:9091 acks=all linger.ms=100 --print-metrics'
+```
+
+Here's some of the output:
+
+```
+41601 records sent, 6623.3 records/sec (6.32 MB/sec), 1158.0 ms avg latency, 4956.0 ms max latency.
+74992 records sent, 14998.4 records/sec (14.30 MB/sec), 3298.5 ms avg latency, 4987.0 ms max latency.
+77488 records sent, 15359.4 records/sec (14.65 MB/sec), 2078.3 ms avg latency, 2680.0 ms max latency.
+89504 records sent, 17900.8 records/sec (17.07 MB/sec), 2076.9 ms avg latency, 2818.0 ms max latency.
+93744 records sent, 18748.8 records/sec (17.88 MB/sec), 1699.6 ms avg latency, 1876.0 ms max latency.
+78240 records sent, 15648.0 records/sec (14.92 MB/sec), 2139.6 ms avg latency, 2589.0 ms max latency.
+86960 records sent, 17322.7 records/sec (16.52 MB/sec), 1840.2 ms avg latency, 2319.0 ms max latency.
+68368 records sent, 13673.6 records/sec (13.04 MB/sec), 2082.0 ms avg latency, 2746.0 ms max latency.
+96704 records sent, 19340.8 records/sec (18.44 MB/sec), 1981.4 ms avg latency, 2808.0 ms max latency.
+99088 records sent, 19813.6 records/sec (18.90 MB/sec), 1660.1 ms avg latency, 1723.0 ms max latency.
+100112 records sent, 20022.4 records/sec (19.09 MB/sec), 1616.4 ms avg latency, 1695.0 ms max latency.
+78208 records sent, 14800.9 records/sec (14.12 MB/sec), 1687.8 ms avg latency, 2985.0 ms max latency.
+368 records sent, 36.7 records/sec (0.03 MB/sec), 3629.0 ms avg latency, 13164.0 ms max latency.
+1000000 records sent, 13324.627910 records/sec (12.71 MB/sec), 2143.04 ms avg latency, 15624.00 ms max latency, 1767 ms 50th, 2804 ms 95th, 14939 ms 99th, 15587 ms 99.9th.
+[...]
+docker exec -it broker1 /bin/bash -c   0.06s user 0.06s system 0% cpu 1:17.20 total
+```
+
+### Conclusion
+
+```
+producer-metrics:bufferpool-wait-ratio:{client-id=perf-producer-client}                                              : 0.692
+```
+
+- Same results as before (bufferpool-wait-ratio=69%) because `batch.size` is already reached
+- `linger.ms` only triggers when batch.size is not reached
+- We need to increase the `batch.size`
 
 
 ---
