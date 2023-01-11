@@ -102,43 +102,79 @@ Topic: demo-perf-topic	TopicId: tDa-tXO4Sr-f5gkavptSXw	PartitionCount: 1	Replica
 ## Start our performance testing
 
 ```bash
-time docker exec -it broker1 /bin/bash -c 'KAFKA_OPTS="" kafka-producer-perf-test --throughput 50000 --num-records 1000000 --topic demo-perf-topic --record-size 1000 --producer-props bootstrap.servers=broker1:9091 acks=all linger.ms=100 batch.size=300000 --print-metrics'
+time docker exec -it broker1 /bin/bash -c 'KAFKA_OPTS="" kafka-producer-perf-test --throughput -1 --num-records 1000000 --topic demo-perf-topic --record-size 1000 --producer-props bootstrap.servers=broker1:9091'
 ```
 
 You should see something like this in your output:
 
 ```bash
-249481 records sent, 49896.2 records/sec (47.58 MB/sec), 142.5 ms avg latency, 546.0 ms max latency.
-250371 records sent, 50034.2 records/sec (47.72 MB/sec), 6.0 ms avg latency, 17.0 ms max latency.
-237600 records sent, 47012.3 records/sec (44.83 MB/sec), 9.2 ms avg latency, 310.0 ms max latency.
-1000000 records sent, 49982.506123 records/sec (47.67 MB/sec), 49.50 ms avg latency, 546.00 ms max latency, 7 ms 50th, 347 ms 95th, 418 ms 99th, 431 ms 99.9th.
+62673 records sent, 12534.6 records/sec (11.95 MB/sec), 1648.0 ms avg latency, 2346.0 ms max latency.
+87184 records sent, 17436.8 records/sec (16.63 MB/sec), 1973.0 ms avg latency, 2391.0 ms max latency.
+106752 records sent, 21350.4 records/sec (20.36 MB/sec), 1552.4 ms avg latency, 1609.0 ms max latency.
+99488 records sent, 19889.6 records/sec (18.97 MB/sec), 1592.8 ms avg latency, 1806.0 ms max latency.
+91568 records sent, 18313.6 records/sec (17.47 MB/sec), 1799.5 ms avg latency, 1868.0 ms max latency.
+92512 records sent, 18502.4 records/sec (17.65 MB/sec), 1774.6 ms avg latency, 1804.0 ms max latency.
+91152 records sent, 18230.4 records/sec (17.39 MB/sec), 1779.7 ms avg latency, 1889.0 ms max latency.
+73584 records sent, 14690.4 records/sec (14.01 MB/sec), 2022.3 ms avg latency, 2736.0 ms max latency.
+36032 records sent, 7206.4 records/sec (6.87 MB/sec), 4647.9 ms avg latency, 5171.0 ms max latency.
+73488 records sent, 14697.6 records/sec (14.02 MB/sec), 2343.4 ms avg latency, 2698.0 ms max latency.
+79216 records sent, 15843.2 records/sec (15.11 MB/sec), 2099.9 ms avg latency, 2339.0 ms max latency.
+84000 records sent, 16800.0 records/sec (16.02 MB/sec), 1953.8 ms avg latency, 2035.0 ms max latency.
+1000000 records sent, 16315.342949 records/sec (15.56 MB/sec), 1951.54 ms avg latency, 5171.00 ms max latency, 1802 ms 50th, 2572 ms 95th, 4898 ms 99th, 5167 ms 99.9th.
+docker exec -it broker1 /bin/bash -c   0.06s user 0.04s system 0% cpu 1:03.22 total
+```
+
+Note: if we run that test again with the `--print-metrics` flag being passed in, we will get a significant amount of usable metrics to describe the test as it ran against the cluster:
+
+```bash
+time docker exec -it broker1 /bin/bash -c 'KAFKA_OPTS="" kafka-producer-perf-test --throughput -1 --num-records 1000000 --topic demo-perf-topic --record-size 1000 --producer-props bootstrap.servers=broker1:9091 --print-metrics'
+```
+
+You'll see a large number of metrics being returned at the end of the run:
+
+```
+Metric Name                                                                                                            Value
+app-info:commit-id:{client-id=perf-producer-client}                                                                  : 9abb940238fc825f9fe29bfde7270c1709e084ba
+app-info:start-time-ms:{client-id=perf-producer-client}                                                              : 1673452900214
+app-info:version:{client-id=perf-producer-client}                                                                    : 7.3.1-ce
+kafka-metrics-count:count:{client-id=perf-producer-client}                                                           : 178.000
 ```
 
 ### Start by looking at the following metrics
 
 | Metric Name | Description |
 |---|---|
-| record-size-avg | important when testing with your OWN application |
-| batch-size-avg | am i filling the batches or not?  If you’re not filling the batch size you may want to look there. |
-| bufferpool-wait-ratio | percentage of time spent waiting for the network.  Everything is in the record accumulator.  Is the test flawed?  Is the producer just hanging?  If you see a high value here, you may be able to increase the batch size to improve performance. |
-| request-latency-avg | sender thread latency - the time spent by the sender thread (that’s item 5 on the previous slide) to get a response back from the broker. |
-| record-queue-time-avg | how many seconds you spend in the record accumulator (in the send buffer) |
-| produce-throttle-time-avg | applies if you have quotas installed |
-| record-retry-rate | hopefully low!  Network issues would increase this.  Some is unlikely to be a problem - lots is cause for concern. |
-| compression-rate-avg | how much are you compressing? |
-| records-per-request | particularly in the event where messages may be larger in size, this will give you an idea as to how much data is going out per each request that is being made. |
-| select-rate | rate at which the sender thread sends from the producer queue (outgoing) |
+| record-size-avg | Important when testing with your own application data |
+| batch-size-avg | The average number of bytes sent per partition per-request.  Is the producer filling their batches?  If they're not, you may want to look at further optimisation to improve this. |
+| bufferpool-wait-ratio | The percentage of time spent waiting for the network.  Everything is in the record accumulator.  Is the test flawed?  Is the producer just hanging?  If you see a high value here, you may be able to increase the batch size to improve performance. |
+| request-latency-avg | Sender thread latency - the time spent by the sender thread to get a response back from the broker. |
+| record-queue-time-avg | This metric covers the average time (in ms) your record batches spend in the record accumulator (in the send buffer). |
+| produce-throttle-time-avg | This metric only applies if you have quotas installed |
+| record-retry-rate | Network issues would cause this to increase.  Some is unlikely to be a problem - lots is cause for concern. |
+| compression-rate-avg | How much are you compressing your data in batches on average? |
+| records-per-request | Particularly in the event where messages may be larger in size, this will give you an idea as to how much data is going out per each request that is being made. |
+| select-rate | The rate at which the sender thread sends from the producer queue (outgoing) |
 
 **request-latency-avg** + **record-queue-time-avg** = the average of the total amount of time fulfilling a request
 
+### What have we learned from the first test?
+
+Highlights:
+- `--throughput -1` means the Producer sends data as much as it can; messages are produced as quickly as possible, with no throttling limit.
+- Average latency ranges from 1552.4 ms to 4647.9 ms - this seems to be something that we should be able to improve.
+
+## Second performance test
+
+The second test involves setting `acks=all` - however in our case, as we're running Kafka 3.2.1, this will make no difference to the test (as this is now the default for a producer)[https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html#acks].  Prior to Kafka 3.0 (the default setting was 1)[https://docs.confluent.io/cloud/current/client-apps/optimizing/durability.html#producer].
 
 
 
 
 
-
-
-
+---
+```bash
+time docker exec -it broker1 /bin/bash -c 'KAFKA_OPTS="" kafka-producer-perf-test --throughput 50000 --num-records 1000000 --topic demo-perf-topic --record-size 1000 --producer-props bootstrap.servers=broker1:9091 acks=all linger.ms=100 batch.size=300000 --print-metrics'
+```
 
 spurious stuff below - to delete
 
