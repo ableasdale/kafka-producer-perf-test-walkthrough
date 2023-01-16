@@ -198,7 +198,7 @@ This suggests that we're seeing some latency from the producer.
 
 What happens if we set `linger.ms` to 100?  Adding this configuration should give the Producer more time to create larger batches.
 
-* Note: linger.ms between 10 and 100 is generally good. Higher than 1000 will have detrimental effects on performance *
+- Note: linger.ms between 10 and 100 is generally good. Higher than 1000 will have detrimental effects on performance
 
 ```bash
 time docker exec -it broker1 /bin/bash -c 'KAFKA_OPTS="" kafka-producer-perf-test --throughput -1 --num-records 1000000 --topic demo-perf-topic --record-size 1000 --producer-props bootstrap.servers=broker1:9091 acks=all linger.ms=100 --print-metrics'
@@ -269,16 +269,13 @@ producer-metrics:request-size-avg:{client-id=perf-producer-client}              
 
 Much better throughput and latency in general (38 seconds for this run; 1 minute 17 seconds previously).
 
-batch-size-avg=191010 now batch.size is not reached -> need to use linger.ms
-bufferpool-wait-ratio=12% -> improvement (from 66%)
-record-queue-time-avg=397 -> improvement (from 2391)
-request-size-avg=253660 -> almost identical to batch.size -> Sender thread is sending ASAP because linger.ms=0
-- We need to increase linger.ms
+- batch-size-avg=191010 now batch.size is not reached -> need to use linger.ms
+- bufferpool-wait-ratio=12% -> improvement (from 66%)
+- record-queue-time-avg=397 -> improvement (from 2391)
+- request-size-avg=253660 -> almost identical to batch.size -> Sender thread is sending ASAP because linger.ms=0
+  - We need to increase linger.ms
 
-
-
-
-## Had to restart due to disk space issues with Docker
+### Note - had to restart due to disk space issues with Docker
 
 ```
 time docker exec -it broker1 /bin/bash -c 'KAFKA_OPTS="" kafka-producer-perf-test --throughput 100000 --num-records 1000000 --topic demo-perf-topic --record-size 1000 --producer-props bootstrap.servers=broker1:9091 acks=all batch.size=400000 --print-metrics'
