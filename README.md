@@ -169,6 +169,10 @@ Highlights:
 
 - `--throughput -1` means the Producer sends data as much as it can; messages are produced as quickly as possible, with no throttling limit.
 - Average latency ranges from 1552.4 ms to 4647.9 ms - this seems to be something that we should be able to improve.
+- `compression-rate` and `compression-rate-avg` are 1.000 (no compression).
+- `bufferpool-wait-ratio` is `0.717` (71% of the time the producer is blocked from running `send()`)
+- `request-latency-avg` is `4.331`
+- `record-queue-time-avg` is `1751.218` (clearly there's some Producer latency...)
 
 ## Second performance test
 
@@ -176,7 +180,7 @@ The second test involves setting `acks=all` - however in our case, [as we're run
 
 Prior to Kafka 3.0 [the default setting was 1](https://docs.confluent.io/cloud/current/client-apps/optimizing/durability.html#producer).
 
-If you are running with an earlier version of Confluent Platform, you'll probably notice `acks=all` will have an impact on both latency and throughput.
+If you are running with an earlier version of Confluent Platform, you'll probably notice `acks=all` will have an impact on both latency and throughput; you'll see worse numbers after adding that.
 
 ## Third performance test
 
@@ -189,10 +193,10 @@ producer-metrics:record-queue-time-avg:{client-id=perf-producer-client}         
 This suggests that we're seeing some latency from the producer.
 
 - Producer is queueing more than it’s dequeuing:
- - The Produce Request size is too low: too many small network requests (all of which are waiting for acks)
- - We need to produce with bigger batches
+  - The Produce Request size is too low: too many small network requests (all of which are waiting for acks)
+  - We need to produce with bigger batches
 
-What happens if we set `linger.ms` to 100?  Adding this configuration should give the Producer more time to create larger batches. 
+What happens if we set `linger.ms` to 100?  Adding this configuration should give the Producer more time to create larger batches.
 
 * Note: linger.ms between 10 and 100 is generally good. Higher than 1000 will have detrimental effects on performance *
 
