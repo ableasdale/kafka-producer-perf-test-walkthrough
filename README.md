@@ -166,14 +166,17 @@ kafka-metrics-count:count:{client-id=perf-producer-client}                      
 ### What have we learned from the first test?
 
 Highlights:
+
 - `--throughput -1` means the Producer sends data as much as it can; messages are produced as quickly as possible, with no throttling limit.
 - Average latency ranges from 1552.4 ms to 4647.9 ms - this seems to be something that we should be able to improve.
 
-## Second performance test
+## Second performance test
 
-The second test involves setting `acks=all` - however in our case, [as we're running Kafka 3.3.0](https://www.confluent.io/blog/introducing-confluent-platform-7-3/), this will make no difference to our test [as this is now the default for a producer](https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html#acks).  Prior to Kafka 3.0 [the default setting was 1](https://docs.confluent.io/cloud/current/client-apps/optimizing/durability.html#producer).
+The second test involves setting `acks=all` - however in our case, [as we're running Kafka 3.3.0](https://www.confluent.io/blog/introducing-confluent-platform-7-3/), this will make no difference to our test [as this is now the default for a producer](https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html#acks).  
 
-If you are running with an earlier version of Confluent Platform, you'll notice `acks=all` will have an impact on both latency and throughput.
+Prior to Kafka 3.0 [the default setting was 1](https://docs.confluent.io/cloud/current/client-apps/optimizing/durability.html#producer).
+
+If you are running with an earlier version of Confluent Platform, you'll probably notice `acks=all` will have an impact on both latency and throughput.
 
 ## Third performance test
 
