@@ -103,7 +103,7 @@ Topic: demo-perf-topic	TopicId: tDa-tXO4Sr-f5gkavptSXw	PartitionCount: 1	Replica
 
 ## Start our performance testing
 
-Let's run `kafka-producer-perf-test` just to see how long it takes to send 1,000,000 messages (`--num-records`) over to the broker: 
+Let's run `kafka-producer-perf-test` just to see how long it takes to send 1,000,000 messages (`--num-records`) over to the broker:
 
 ```bash
 time docker exec -it broker1 /bin/bash -c 'KAFKA_OPTS="" kafka-producer-perf-test --throughput -1 --num-records 1000000 --topic demo-perf-topic --record-size 1000 --producer-props bootstrap.servers=broker1:9091'
@@ -198,7 +198,7 @@ This suggests that we're seeing some latency from the producer.
 
 What happens if we set `linger.ms` to 100?  Adding this configuration should give the Producer more time to create larger batches.
 
-- Note: linger.ms between 10 and 100 is generally good. Higher than 1000 will have detrimental effects on performance
+- Note: setting `linger.ms` between 10 and 100 is generally considered to be good practice. Increasing this value beyond 100 is unlikely to yield positive results and setting `linger.ms` to a value that is higher than 1000 will have detrimental effects on overall performance.
 
 ```bash
 time docker exec -it broker1 /bin/bash -c 'KAFKA_OPTS="" kafka-producer-perf-test --throughput -1 --num-records 1000000 --topic demo-perf-topic --record-size 1000 --producer-props bootstrap.servers=broker1:9091 acks=all linger.ms=100 --print-metrics'
@@ -232,7 +232,7 @@ producer-metrics:bufferpool-wait-ratio:{client-id=perf-producer-client}         
 ```
 
 - Same results as before (bufferpool-wait-ratio=69%) because `batch.size` is already reached
-- `linger.ms` only triggers when batch.size is not reached
+- `linger.ms` only triggers when `batch.size` is not reached
 - We need to increase the `batch.size`
 
 ## Fourth performance test
@@ -284,6 +284,10 @@ time docker exec -it broker1 /bin/bash -c 'KAFKA_OPTS="" kafka-producer-perf-tes
 1000000 records sent, 83647.009619 records/sec (79.77 MB/sec), 2.40 ms avg latency, 482.00 ms max latency, 2 ms 50th, 4 ms 95th, 12 ms 99th, 28 ms 99.9th.
 ```
 
+## Testing larger workloads
+
+So far, we've been looking at a fairly constrained test with a workload that is fixed in size.  What happens if we start to increase the size of the workload?  Does the profile of the test change in a meaningful way?  Is further optimisation necessary and if so, what choices do we have?
+
 
 time docker exec -it broker1 /bin/bash -c 'KAFKA_OPTS="" kafka-producer-perf-test --throughput 100000 --num-records 2000000 --topic demo-perf-topic --record-size 1000 --producer-props bootstrap.servers=broker1:9091 acks=all batch.size=400000 --print-metrics'
 375684 records sent, 75136.8 records/sec (71.66 MB/sec), 2.3 ms avg latency, 482.0 ms max latency.
@@ -324,7 +328,7 @@ docker-compose exec broker1 kafka-topics --bootstrap-server broker1:9091 --topic
 Created topic demo-perf-topic3.
 ```
 
-## Final settings 
+## Final settings
 
 ```bash
 time docker exec -it broker1 /bin/bash -c 'KAFKA_OPTS="" kafka-producer-perf-test --throughput 100000 --num-records 3000000 --topic demo-perf-topic --record-size 1000 --producer-props bootstrap.servers=broker1:9091 acks=all batch.size=300000 compression.type=lz4 linger.ms=100 --print-metrics'
